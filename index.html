@@ -327,26 +327,35 @@
   const CATCH_RADIUS = 24;
   const MARGIN = 20;
   let caught = false;
+  let caughtCritter = null;
+  const HOLD_MS = 3000;
+  const HELD_OFFSET_X = 0;
+  const HELD_OFFSET_Y = 20;
 
   function catchCritter(critter) {
     caught = true;
+    caughtCritter = critter;
     clearInterval(critter.dirTimer);
     critter.vx = 0;
     critter.vy = 0;
-    critter.el.style.opacity = 0;
-    caughtText.style.transform = `translate(${critter.x + 22}px, ${critter.y - 10}px)`;
     caughtText.style.opacity = 1;
 
     setTimeout(() => {
       caughtText.style.opacity = 0;
-      critter.x = Math.random() * w;
-      critter.y = Math.random() * h;
-      critter.el.style.opacity = 1;
+      caught = false;
+      caughtCritter = null;
       critter.dirTimer = setInterval(critter.newDir, 700 + Math.random() * 1300);
       critter.newDir();
-      caught = false;
-    }, 1800);
+    }, HOLD_MS);
   }
+
+  window.addEventListener("click", () => {
+    if (caught || !hasMouse) return;
+    const target = critters.find(
+      (c) => c.catchable && Math.hypot(c.x - mouseX, c.y - mouseY) < CATCH_RADIUS
+    );
+    if (target) catchCritter(target);
+  });
 
   let lastTime = performance.now();
   function frame(now) {
@@ -354,8 +363,11 @@
     lastTime = now;
 
     critters.forEach((c) => {
-      const isFrozen = caught && c.catchable && c.vx === 0 && c.vy === 0 && c.el.style.opacity === "0";
-      if (!isFrozen) {
+      if (caught && c === caughtCritter) {
+        c.x = mouseX + HELD_OFFSET_X;
+        c.y = mouseY + HELD_OFFSET_Y;
+        caughtText.style.transform = `translate(${c.x + 20}px, ${c.y}px)`;
+      } else {
         if (c.flee && hasMouse) {
           const dx = c.x - mouseX, dy = c.y - mouseY;
           const dist = Math.hypot(dx, dy);
@@ -373,10 +385,6 @@
         if (c.x > w - m) { c.x = w - m; c.vx = -Math.abs(c.vx); }
         if (c.y < m) { c.y = m; c.vy = Math.abs(c.vy); }
         if (c.y > h - m) { c.y = h - m; c.vy = -Math.abs(c.vy); }
-
-        if (c.catchable && !caught && hasMouse && Math.hypot(c.x - mouseX, c.y - mouseY) < CATCH_RADIUS) {
-          catchCritter(c);
-        }
       }
 
       const facingLeft = c.vx <= 0;
