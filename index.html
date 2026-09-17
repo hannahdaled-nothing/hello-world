@@ -7,133 +7,136 @@
   html, body {
     margin: 0;
     height: 100%;
-    background: #050505;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  h1.sr-only {
-    position: absolute;
-    width: 1px; height: 1px;
+    background: #fafafa;
     overflow: hidden;
-    clip: rect(0 0 0 0);
   }
-  .board {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 12px 22px;
-    max-width: 900px;
-    padding: 24px;
+  #instructions {
+    position: fixed;
+    top: 14px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-family: sans-serif;
+    font-size: 13px;
+    color: #999;
+    letter-spacing: 0.05em;
+    user-select: none;
+    pointer-events: none;
   }
-  .word {
-    display: flex;
-    gap: 6px;
+  #rat {
+    position: fixed;
+    top: 0;
+    left: 0;
+    font-size: 30px;
+    line-height: 1;
+    user-select: none;
+    pointer-events: none;
+    will-change: transform;
   }
-  .tile {
-    width: clamp(24px, 6vw, 46px);
-    height: clamp(36px, 9vw, 68px);
-    perspective: 300px;
-  }
-  .tile-inner {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    transform-style: preserve-3d;
-    transform: rotateX(0deg);
-  }
-  .tile-face {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(to bottom, #1c1c1c 49.5%, #101010 50.5%);
-    color: #ffb100;
+  #trail {
+    position: fixed;
+    top: 0;
+    left: 0;
     font-family: "Courier New", Courier, monospace;
-    font-weight: 700;
-    font-size: clamp(16px, 4.5vw, 34px);
-    border-radius: 3px;
-    backface-visibility: hidden;
-    box-shadow: inset 0 0 0 1px #000, 0 2px 4px rgba(0,0,0,.6);
-  }
-  .tile-face.back {
-    transform: rotateX(180deg);
+    font-size: 15px;
+    color: #333;
+    white-space: nowrap;
+    user-select: none;
+    pointer-events: none;
+    will-change: transform;
   }
 </style>
 </head>
 <body>
-<h1 class="sr-only">Hello, my name is Hannah Daled</h1>
-<div class="board" id="board" aria-hidden="true"></div>
+<div id="instructions">catch him</div>
+<div id="rat">🐀</div>
+<div id="trail"></div>
 <script>
-  const TEXT = "HELLO, MY NAME IS HANNAH DALED";
-  const CHARS = " ABCDEFGHIJKLMNOPQRSTUVWXYZ,.!?";
-  const FLIP_MS = 130;
-  const GAP_MS = 40;
+  const SENTENCE = "Hello, my name is Hannah.";
+  const rat = document.getElementById("rat");
+  const trail = document.getElementById("trail");
 
-  const board = document.getElementById("board");
-  const words = TEXT.split(" ");
+  let w = window.innerWidth, h = window.innerHeight;
+  window.addEventListener("resize", () => { w = window.innerWidth; h = window.innerHeight; });
 
-  function randChar() {
-    return CHARS[Math.floor(Math.random() * CHARS.length)];
+  // --- rat wandering / fleeing ---
+  let ratX = Math.random() * w, ratY = Math.random() * h;
+  let vx = 0, vy = 0;
+  const WANDER_SPEED = 90;   // px/sec
+  const FLEE_SPEED = 260;    // px/sec
+  const FLEE_RADIUS = 130;   // px
+  const MARGIN = 20;
+
+  function newWanderDirection() {
+    const angle = Math.random() * Math.PI * 2;
+    vx = Math.cos(angle) * WANDER_SPEED;
+    vy = Math.sin(angle) * WANDER_SPEED;
   }
+  newWanderDirection();
+  setInterval(newWanderDirection, 900 + Math.random() * 900);
 
-  function makeTile() {
-    const tile = document.createElement("div");
-    tile.className = "tile";
-    const inner = document.createElement("div");
-    inner.className = "tile-inner";
-    const front = document.createElement("div");
-    front.className = "tile-face front";
-    const back = document.createElement("div");
-    back.className = "tile-face back";
-    inner.append(front, back);
-    tile.append(inner);
-    return { tile, inner, front, back };
-  }
+  // --- pointer tracking ---
+  let mouseX = w / 2, mouseY = h / 2;
+  let hasMouse = false;
+  let lastMoveX = mouseX, lastMoveY = mouseY, lastMoveTime = performance.now();
+  let revealLength = 0;
+  const REVEAL_GAIN = 0.0022;
+  const REVEAL_DECAY = 7; // chars per second
 
-  function flipOnce(refs, nextChar, onDone) {
-    refs.back.textContent = nextChar;
-    refs.inner.style.transition = `transform ${FLIP_MS}ms ease-in`;
-    requestAnimationFrame(() => {
-      refs.inner.style.transform = "rotateX(-180deg)";
-    });
-    setTimeout(() => {
-      refs.inner.style.transition = "none";
-      refs.inner.style.transform = "rotateX(0deg)";
-      refs.front.textContent = nextChar;
-      refs.inner.offsetHeight;
-      onDone();
-    }, FLIP_MS);
-  }
-
-  function runTile(refs, target, stopAt) {
-    if (performance.now() >= stopAt) {
-      flipOnce(refs, target, () => {});
-      return;
-    }
-    flipOnce(refs, randChar(), () => {
-      setTimeout(() => runTile(refs, target, stopAt), GAP_MS);
-    });
-  }
-
-  let index = 0;
-  words.forEach(word => {
-    const wordEl = document.createElement("div");
-    wordEl.className = "word";
-    [...word].forEach(target => {
-      const refs = makeTile();
-      refs.front.textContent = " ";
-      refs.back.textContent = " ";
-      wordEl.append(refs.tile);
-
-      const startDelay = index * 25 + Math.random() * 150;
-      const stopAt = performance.now() + 1400 + index * 40 + Math.random() * 900;
-      setTimeout(() => runTile(refs, target, stopAt), startDelay);
-      index++;
-    });
-    board.append(wordEl);
+  window.addEventListener("pointermove", (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+    hasMouse = true;
+    const now = performance.now();
+    const dt = Math.max(now - lastMoveTime, 1);
+    const dist = Math.hypot(mouseX - lastMoveX, mouseY - lastMoveY);
+    const speed = (dist / dt) * 1000; // px/sec
+    revealLength = Math.min(SENTENCE.length, revealLength + speed * REVEAL_GAIN);
+    lastMoveX = mouseX;
+    lastMoveY = mouseY;
+    lastMoveTime = now;
   });
+
+  let trailX = mouseX, trailY = mouseY;
+
+  let lastTime = performance.now();
+  function frame(now) {
+    const dt = Math.min((now - lastTime) / 1000, 0.05);
+    lastTime = now;
+
+    // flee if pointer is near
+    if (hasMouse) {
+      const dx = ratX - mouseX, dy = ratY - mouseY;
+      const dist = Math.hypot(dx, dy);
+      if (dist < FLEE_RADIUS && dist > 0.01) {
+        vx = (dx / dist) * FLEE_SPEED;
+        vy = (dy / dist) * FLEE_SPEED;
+      }
+    }
+
+    ratX += vx * dt;
+    ratY += vy * dt;
+
+    if (ratX < MARGIN) { ratX = MARGIN; vx = Math.abs(vx); }
+    if (ratX > w - MARGIN) { ratX = w - MARGIN; vx = -Math.abs(vx); }
+    if (ratY < MARGIN) { ratY = MARGIN; vy = Math.abs(vy); }
+    if (ratY > h - MARGIN) { ratY = h - MARGIN; vy = -Math.abs(vy); }
+
+    const facingLeft = vx <= 0;
+    rat.style.transform = `translate(${ratX - 15}px, ${ratY - 15}px) scaleX(${facingLeft ? 1 : -1})`;
+
+    // reveal text decays over time, grows on fast pointer moves
+    revealLength = Math.max(0, revealLength - REVEAL_DECAY * dt);
+
+    // trailing text lags behind the pointer
+    trailX += (mouseX - trailX) * 0.15;
+    trailY += (mouseY - trailY) * 0.15;
+    trail.style.transform = `translate(${trailX + 16}px, ${trailY + 16}px)`;
+    trail.textContent = SENTENCE.slice(0, Math.round(revealLength));
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
 </script>
 </body>
 </html>
