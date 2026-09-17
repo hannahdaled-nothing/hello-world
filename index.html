@@ -44,42 +44,97 @@
     will-change: transform;
   }
   #caterpillar .seg {
-    width: 15px;
-    height: 15px;
+    width: 9px;
+    height: 9px;
     border-radius: 50%;
-    margin-left: -4px;
-    box-shadow: inset 0 -2px 2px rgba(0,0,0,0.15);
+    margin-left: -3px;
+    box-shadow: inset 0 -1px 1px rgba(0,0,0,0.15);
   }
   #caterpillar .seg:first-child { margin-left: 0; }
   #caterpillar .head {
-    width: 18px;
-    height: 18px;
+    width: 11px;
+    height: 11px;
     border-radius: 50%;
     background: #7bc043;
     position: relative;
-    box-shadow: inset 0 -2px 2px rgba(0,0,0,0.15);
+    box-shadow: inset 0 -1px 1px rgba(0,0,0,0.15);
   }
   #caterpillar .head::before,
   #caterpillar .head::after {
     content: "";
     position: absolute;
-    width: 3px;
-    height: 3px;
+    width: 2px;
+    height: 2px;
     background: #222;
     border-radius: 50%;
-    top: 5px;
+    top: 3px;
   }
-  #caterpillar .head::before { left: 3px; }
-  #caterpillar .head::after { left: 10px; }
+  #caterpillar .head::before { left: 2px; }
+  #caterpillar .head::after { left: 6px; }
   #caterpillar .antenna {
     position: absolute;
-    width: 2px;
-    height: 8px;
+    width: 1.5px;
+    height: 5px;
     background: #7bc043;
-    top: -7px;
+    top: -4px;
   }
-  #caterpillar .antenna.l { left: 3px; transform: rotate(-20deg); transform-origin: bottom; }
-  #caterpillar .antenna.r { left: 11px; transform: rotate(20deg); transform-origin: bottom; }
+  #caterpillar .antenna.l { left: 2px; transform: rotate(-20deg); transform-origin: bottom; }
+  #caterpillar .antenna.r { left: 7px; transform: rotate(20deg); transform-origin: bottom; }
+  .static-decor {
+    position: fixed;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    user-select: none;
+  }
+  .grass {
+    width: 20px;
+    height: 20px;
+  }
+  .grass .blade {
+    position: absolute;
+    bottom: 0;
+    width: 3px;
+    border-radius: 4px 4px 0 0;
+    background: #6aa84f;
+    transform: rotate(var(--base));
+    transform-origin: bottom center;
+  }
+  .grass.wave .blade {
+    animation: sway 2.4s ease-in-out infinite;
+    animation-delay: var(--delay, 0s);
+  }
+  @keyframes sway {
+    0%, 100% { transform: rotate(var(--base)); }
+    50% { transform: rotate(calc(var(--base) + 10deg)); }
+  }
+  .flower {
+    width: 16px;
+    height: 16px;
+  }
+  .flower .petal {
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    top: 5px;
+    left: 5px;
+    transform-origin: center;
+  }
+  .flower .center {
+    position: absolute;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #f4c542;
+    top: 5.5px;
+    left: 5.5px;
+    z-index: 1;
+  }
+  .bear {
+    font-size: 26px;
+    line-height: 1;
+  }
   #caught {
     position: fixed;
     top: 0;
@@ -159,8 +214,62 @@
     critters.push(state);
   }
 
+  // --- static decorations: grass, flowers, sitting bears ---
+  const decorLayer = document.createElement("div");
+  document.body.insertBefore(decorLayer, document.body.firstChild);
+
+  function randPos(el, marginTop) {
+    const x = Math.random() * (w - 30) + 5;
+    const y = (marginTop || 50) + Math.random() * (h - (marginTop || 50) - 20);
+    el.style.transform = `translate(${x}px, ${y}px)`;
+  }
+
+  for (let i = 0; i < 14; i++) {
+    const grass = document.createElement("div");
+    grass.className = "static-decor grass" + (Math.random() < 0.6 ? " wave" : "");
+    for (let b = 0; b < 3; b++) {
+      const blade = document.createElement("span");
+      blade.className = "blade";
+      const base = -18 + b * 18 + (Math.random() * 8 - 4);
+      blade.style.setProperty("--base", base + "deg");
+      blade.style.setProperty("--delay", (Math.random() * 1.5) + "s");
+      blade.style.left = (2 + b * 6) + "px";
+      blade.style.height = (12 + Math.random() * 8) + "px";
+      grass.appendChild(blade);
+    }
+    randPos(grass);
+    decorLayer.appendChild(grass);
+  }
+
+  const petalColors = ["#f28fb2", "#ffffff", "#c9a6f0", "#f6a04d", "#f2665e"];
+  for (let i = 0; i < 8; i++) {
+    const flower = document.createElement("div");
+    flower.className = "static-decor flower";
+    const color = petalColors[Math.floor(Math.random() * petalColors.length)];
+    for (let p = 0; p < 5; p++) {
+      const petal = document.createElement("span");
+      petal.className = "petal";
+      petal.style.background = color;
+      petal.style.transform = `rotate(${p * 72}deg) translateY(-6px)`;
+      flower.appendChild(petal);
+    }
+    const center = document.createElement("span");
+    center.className = "center";
+    flower.appendChild(center);
+    randPos(flower);
+    decorLayer.appendChild(flower);
+  }
+
+  ["🐻", "🐻", "🐨"].forEach((emoji) => {
+    const bear = document.createElement("div");
+    bear.className = "static-decor bear";
+    bear.textContent = emoji;
+    randPos(bear, 70);
+    decorLayer.appendChild(bear);
+  });
+
   // --- decorative critters: wander only ---
-  const ANIMALS = ["🐀", "🐁", "🐇", "🐿️", "🦔", "🐦", "🐤", "🐝", "🐞"];
+  const ANIMALS = ["🐀", "🐁", "🐇", "🐿️", "🦔", "🐦", "🐤", "🐝", "🐞", "🦋", "🦋", "🐜", "🕷️", "🪲", "🦗"];
   ANIMALS.forEach((emoji) => {
     const el = document.createElement("div");
     el.className = "critter";
@@ -206,7 +315,7 @@
     y: Math.random() * h,
     vx: 0, vy: 0,
     speed: 75,
-    halfSize: 16,
+    halfSize: 10,
     flee: true,
     fleeSpeed: 230,
     fleeRadius: 120,
