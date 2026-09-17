@@ -9,6 +9,7 @@
     height: 100%;
     background: #fafafa;
     overflow: hidden;
+    cursor: none;
   }
   #instructions {
     position: fixed;
@@ -23,116 +24,258 @@
     user-select: none;
     pointer-events: none;
   }
-  #rat {
+  .critter {
     position: fixed;
     top: 0;
     left: 0;
-    font-size: 30px;
     line-height: 1;
     user-select: none;
     pointer-events: none;
     will-change: transform;
   }
-  #trail {
+  #caterpillar {
     position: fixed;
     top: 0;
     left: 0;
-    font-family: "Courier New", Courier, monospace;
-    font-size: 15px;
-    color: #333;
-    white-space: nowrap;
+    display: flex;
+    align-items: center;
     user-select: none;
     pointer-events: none;
     will-change: transform;
   }
+  #caterpillar .seg {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    margin-left: -4px;
+    box-shadow: inset 0 -2px 2px rgba(0,0,0,0.15);
+  }
+  #caterpillar .seg:first-child { margin-left: 0; }
+  #caterpillar .head {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #7bc043;
+    position: relative;
+    box-shadow: inset 0 -2px 2px rgba(0,0,0,0.15);
+  }
+  #caterpillar .head::before,
+  #caterpillar .head::after {
+    content: "";
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    background: #222;
+    border-radius: 50%;
+    top: 5px;
+  }
+  #caterpillar .head::before { left: 3px; }
+  #caterpillar .head::after { left: 10px; }
+  #caterpillar .antenna {
+    position: absolute;
+    width: 2px;
+    height: 8px;
+    background: #7bc043;
+    top: -7px;
+  }
+  #caterpillar .antenna.l { left: 3px; transform: rotate(-20deg); transform-origin: bottom; }
+  #caterpillar .antenna.r { left: 11px; transform: rotate(20deg); transform-origin: bottom; }
+  #caught {
+    position: fixed;
+    top: 0;
+    left: 0;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 16px;
+    color: #333;
+    white-space: nowrap;
+    user-select: none;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  #net {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 34px;
+    height: 34px;
+    user-select: none;
+    pointer-events: none;
+    will-change: transform;
+  }
+  #net .ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 3px solid #555;
+    box-sizing: border-box;
+    background:
+      repeating-linear-gradient(45deg, transparent 0 4px, rgba(0,0,0,0.3) 4px 5px),
+      repeating-linear-gradient(-45deg, transparent 0 4px, rgba(0,0,0,0.3) 4px 5px);
+  }
+  #net .handle {
+    position: absolute;
+    width: 3px;
+    height: 20px;
+    background: #8a5a2b;
+    right: -2px;
+    bottom: -17px;
+    transform: rotate(45deg);
+    transform-origin: top center;
+    border-radius: 2px;
+  }
 </style>
 </head>
 <body>
-<div id="instructions">catch him</div>
-<div id="rat">🐀</div>
-<div id="trail"></div>
+<div id="instructions">catch the caterpillar</div>
+<div id="caught">Hello, I am Hannah.</div>
+<div id="net"><div class="ring"></div><div class="handle"></div></div>
 <script>
-  const SENTENCE = "Hello, my name is Hannah.";
-  const rat = document.getElementById("rat");
-  const trail = document.getElementById("trail");
-
   let w = window.innerWidth, h = window.innerHeight;
   window.addEventListener("resize", () => { w = window.innerWidth; h = window.innerHeight; });
 
-  // --- rat wandering / fleeing ---
-  let ratX = Math.random() * w, ratY = Math.random() * h;
-  let vx = 0, vy = 0;
-  const WANDER_SPEED = 90;   // px/sec
-  const FLEE_SPEED = 260;    // px/sec
-  const FLEE_RADIUS = 130;   // px
-  const MARGIN = 20;
+  const net = document.getElementById("net");
+  const caughtText = document.getElementById("caught");
 
-  function newWanderDirection() {
-    const angle = Math.random() * Math.PI * 2;
-    vx = Math.cos(angle) * WANDER_SPEED;
-    vy = Math.sin(angle) * WANDER_SPEED;
-  }
-  newWanderDirection();
-  setInterval(newWanderDirection, 900 + Math.random() * 900);
-
-  // --- pointer tracking ---
   let mouseX = w / 2, mouseY = h / 2;
   let hasMouse = false;
-  let lastMoveX = mouseX, lastMoveY = mouseY, lastMoveTime = performance.now();
-  let revealLength = 0;
-  const REVEAL_GAIN = 0.0022;
-  const REVEAL_DECAY = 7; // chars per second
-
   window.addEventListener("pointermove", (e) => {
     mouseX = e.clientX;
     mouseY = e.clientY;
     hasMouse = true;
-    const now = performance.now();
-    const dt = Math.max(now - lastMoveTime, 1);
-    const dist = Math.hypot(mouseX - lastMoveX, mouseY - lastMoveY);
-    const speed = (dist / dt) * 1000; // px/sec
-    revealLength = Math.min(SENTENCE.length, revealLength + speed * REVEAL_GAIN);
-    lastMoveX = mouseX;
-    lastMoveY = mouseY;
-    lastMoveTime = now;
   });
 
-  let trailX = mouseX, trailY = mouseY;
+  const critters = [];
+
+  function addCritter(state) {
+    function newDir() {
+      const angle = Math.random() * Math.PI * 2;
+      state.vx = Math.cos(angle) * state.speed;
+      state.vy = Math.sin(angle) * state.speed;
+    }
+    state.newDir = newDir;
+    newDir();
+    state.dirTimer = setInterval(newDir, 700 + Math.random() * 1300);
+    critters.push(state);
+  }
+
+  // --- decorative critters: wander only ---
+  const ANIMALS = ["🐀", "🐁", "🐇", "🐿️", "🦔", "🐦", "🐤", "🐝", "🐞"];
+  ANIMALS.forEach((emoji) => {
+    const el = document.createElement("div");
+    el.className = "critter";
+    el.textContent = emoji;
+    const size = 20 + Math.random() * 10;
+    el.style.fontSize = size + "px";
+    document.body.appendChild(el);
+    addCritter({
+      el,
+      x: Math.random() * w,
+      y: Math.random() * h,
+      vx: 0, vy: 0,
+      speed: 50 + Math.random() * 90,
+      halfSize: size / 2,
+      flee: false,
+      catchable: false,
+    });
+  });
+
+  // --- caterpillar: the one you're after ---
+  const colors = ["#e63946", "#f4a261", "#e9c46a", "#2a9d8f", "#264653", "#8e7cc3"];
+  const caterpillarEl = document.createElement("div");
+  caterpillarEl.id = "caterpillar";
+  const head = document.createElement("div");
+  head.className = "head";
+  const antL = document.createElement("div");
+  antL.className = "antenna l";
+  const antR = document.createElement("div");
+  antR.className = "antenna r";
+  head.append(antL, antR);
+  caterpillarEl.append(head);
+  colors.forEach((c) => {
+    const seg = document.createElement("div");
+    seg.className = "seg";
+    seg.style.background = c;
+    caterpillarEl.append(seg);
+  });
+  document.body.appendChild(caterpillarEl);
+
+  const caterpillar = {
+    el: caterpillarEl,
+    x: Math.random() * w,
+    y: Math.random() * h,
+    vx: 0, vy: 0,
+    speed: 75,
+    halfSize: 16,
+    flee: true,
+    fleeSpeed: 230,
+    fleeRadius: 120,
+    catchable: true,
+  };
+  addCritter(caterpillar);
+
+  const CATCH_RADIUS = 24;
+  const MARGIN = 20;
+  let caught = false;
+
+  function catchCritter(critter) {
+    caught = true;
+    clearInterval(critter.dirTimer);
+    critter.vx = 0;
+    critter.vy = 0;
+    critter.el.style.opacity = 0;
+    caughtText.style.transform = `translate(${critter.x + 22}px, ${critter.y - 10}px)`;
+    caughtText.style.opacity = 1;
+
+    setTimeout(() => {
+      caughtText.style.opacity = 0;
+      critter.x = Math.random() * w;
+      critter.y = Math.random() * h;
+      critter.el.style.opacity = 1;
+      critter.dirTimer = setInterval(critter.newDir, 700 + Math.random() * 1300);
+      critter.newDir();
+      caught = false;
+    }, 1800);
+  }
 
   let lastTime = performance.now();
   function frame(now) {
     const dt = Math.min((now - lastTime) / 1000, 0.05);
     lastTime = now;
 
-    // flee if pointer is near
-    if (hasMouse) {
-      const dx = ratX - mouseX, dy = ratY - mouseY;
-      const dist = Math.hypot(dx, dy);
-      if (dist < FLEE_RADIUS && dist > 0.01) {
-        vx = (dx / dist) * FLEE_SPEED;
-        vy = (dy / dist) * FLEE_SPEED;
+    critters.forEach((c) => {
+      const isFrozen = caught && c.catchable && c.vx === 0 && c.vy === 0 && c.el.style.opacity === "0";
+      if (!isFrozen) {
+        if (c.flee && hasMouse) {
+          const dx = c.x - mouseX, dy = c.y - mouseY;
+          const dist = Math.hypot(dx, dy);
+          if (dist < c.fleeRadius && dist > 0.01) {
+            c.vx = (dx / dist) * c.fleeSpeed;
+            c.vy = (dy / dist) * c.fleeSpeed;
+          }
+        }
+
+        c.x += c.vx * dt;
+        c.y += c.vy * dt;
+
+        const m = c.halfSize + MARGIN;
+        if (c.x < m) { c.x = m; c.vx = Math.abs(c.vx); }
+        if (c.x > w - m) { c.x = w - m; c.vx = -Math.abs(c.vx); }
+        if (c.y < m) { c.y = m; c.vy = Math.abs(c.vy); }
+        if (c.y > h - m) { c.y = h - m; c.vy = -Math.abs(c.vy); }
+
+        if (c.catchable && !caught && hasMouse && Math.hypot(c.x - mouseX, c.y - mouseY) < CATCH_RADIUS) {
+          catchCritter(c);
+        }
       }
+
+      const facingLeft = c.vx <= 0;
+      c.el.style.transform = `translate(${c.x - c.halfSize}px, ${c.y - c.halfSize}px) scaleX(${facingLeft ? 1 : -1})`;
+    });
+
+    if (hasMouse) {
+      net.style.transform = `translate(${mouseX - 12}px, ${mouseY - 12}px)`;
     }
-
-    ratX += vx * dt;
-    ratY += vy * dt;
-
-    if (ratX < MARGIN) { ratX = MARGIN; vx = Math.abs(vx); }
-    if (ratX > w - MARGIN) { ratX = w - MARGIN; vx = -Math.abs(vx); }
-    if (ratY < MARGIN) { ratY = MARGIN; vy = Math.abs(vy); }
-    if (ratY > h - MARGIN) { ratY = h - MARGIN; vy = -Math.abs(vy); }
-
-    const facingLeft = vx <= 0;
-    rat.style.transform = `translate(${ratX - 15}px, ${ratY - 15}px) scaleX(${facingLeft ? 1 : -1})`;
-
-    // reveal text decays over time, grows on fast pointer moves
-    revealLength = Math.max(0, revealLength - REVEAL_DECAY * dt);
-
-    // trailing text lags behind the pointer
-    trailX += (mouseX - trailX) * 0.15;
-    trailY += (mouseY - trailY) * 0.15;
-    trail.style.transform = `translate(${trailX + 16}px, ${trailY + 16}px)`;
-    trail.textContent = SENTENCE.slice(0, Math.round(revealLength));
 
     requestAnimationFrame(frame);
   }
