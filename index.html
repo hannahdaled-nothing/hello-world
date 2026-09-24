@@ -159,6 +159,95 @@
     will-change: transform;
     overflow: visible;
   }
+  .critter, .generated-critter {
+    transition: opacity 0.3s ease;
+  }
+  .generated-critter {
+    position: fixed;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    user-select: none;
+    will-change: transform;
+  }
+  .generated-critter .body {
+    position: relative;
+  }
+  .generated-critter .eye {
+    position: absolute;
+    width: 30%;
+    height: 30%;
+    background: #fff;
+    border-radius: 50%;
+    top: 20%;
+  }
+  .generated-critter .eye::after {
+    content: "";
+    position: absolute;
+    width: 45%;
+    height: 45%;
+    background: #222;
+    border-radius: 50%;
+    top: 27%;
+    left: 27%;
+  }
+  .generated-critter .spike {
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    top: -6px;
+  }
+  #creature-panel {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    z-index: 20;
+    font-family: sans-serif;
+    cursor: auto;
+  }
+  #creature-toggle {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 1px solid #ddd;
+    background: #fff;
+    font-size: 20px;
+    line-height: 1;
+    color: #555;
+    cursor: pointer;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.18);
+  }
+  #creature-form {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    padding: 6px 8px 6px 14px;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.18);
+  }
+  #creature-form.hidden {
+    display: none;
+  }
+  #creature-input {
+    border: none;
+    outline: none;
+    font-size: 13px;
+    width: 180px;
+    cursor: text;
+  }
+  #creature-form button[type="submit"] {
+    border: none;
+    background: #333;
+    color: #fff;
+    border-radius: 14px;
+    padding: 6px 14px;
+    font-size: 12px;
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
@@ -185,6 +274,13 @@
     <!-- hoop -->
     <circle cx="24" cy="20" r="17" fill="none" stroke="#555" stroke-width="4"/>
   </svg>
+</div>
+<div id="creature-panel">
+  <button id="creature-toggle" type="button" title="Add a creature">+</button>
+  <form id="creature-form" class="hidden">
+    <input id="creature-input" type="text" placeholder="describe a creature..." maxlength="40" autocomplete="off">
+    <button type="submit">Add</button>
+  </form>
 </div>
 <script>
   let w = window.innerWidth, h = window.innerHeight;
@@ -270,24 +366,152 @@
   });
 
   // --- decorative critters: wander only ---
-  const ANIMALS = ["🐀", "🐁", "🐇", "🐿️", "🦔", "🐦", "🐤", "🐝", "🐞", "🦋", "🦋", "🐜", "🕷️", "🪲", "🦗"];
-  ANIMALS.forEach((emoji) => {
+  function spawnEmojiCritter(emoji, dropX, dropY) {
     const el = document.createElement("div");
     el.className = "critter";
     el.textContent = emoji;
     const size = 20 + Math.random() * 10;
     el.style.fontSize = size + "px";
+    el.style.opacity = 0;
     document.body.appendChild(el);
     addCritter({
       el,
-      x: Math.random() * w,
-      y: Math.random() * h,
+      x: dropX ?? Math.random() * w,
+      y: dropY ?? Math.random() * h,
       vx: 0, vy: 0,
       speed: 50 + Math.random() * 90,
       halfSize: size / 2,
       flee: false,
       catchable: false,
     });
+    requestAnimationFrame(() => { el.style.opacity = 1; });
+  }
+
+  const ANIMALS = ["🐀", "🐁", "🐇", "🐿️", "🦔", "🐦", "🐤", "🐝", "🐞", "🦋", "🦋", "🐜", "🕷️", "🪲", "🦗"];
+  ANIMALS.forEach((emoji) => spawnEmojiCritter(emoji));
+
+  // --- user-generated creatures ---
+  const KEYWORD_EMOJI = {
+    cat: "🐱", kitten: "🐱", dog: "🐶", puppy: "🐶", fox: "🦊", wolf: "🐺",
+    bear: "🐻", panda: "🐼", koala: "🐨", lion: "🦁", tiger: "🐯", cow: "🐮",
+    pig: "🐷", horse: "🐴", unicorn: "🦄", zebra: "🦓", deer: "🦌", camel: "🐫",
+    elephant: "🐘", rhino: "🦏", hippo: "🦛", monkey: "🐵", gorilla: "🦍",
+    sheep: "🐑", goat: "🐐", chicken: "🐔", rooster: "🐓", turkey: "🦃",
+    penguin: "🐧", owl: "🦉", eagle: "🦅", parrot: "🦜", flamingo: "🦩",
+    duck: "🦆", swan: "🦢", peacock: "🦚", frog: "🐸", turtle: "🐢",
+    lizard: "🦎", snake: "🐍", dragon: "🐉", dinosaur: "🦖", crocodile: "🐊",
+    fish: "🐟", whale: "🐳", dolphin: "🐬", shark: "🦈", octopus: "🐙",
+    crab: "🦀", lobster: "🦞", shrimp: "🦐", snail: "🐌", worm: "🪱",
+    spider: "🕷️", scorpion: "🦂", ant: "🐜", bee: "🐝", beetle: "🪲",
+    cricket: "🦗", ladybug: "🐞", butterfly: "🦋", caterpillar: "🐛",
+    mosquito: "🦟", squid: "🦑", squirrel: "🐿️", hedgehog: "🦔",
+    rabbit: "🐇", bunny: "🐇", mouse: "🐭", rat: "🐀", hamster: "🐹",
+    bat: "🦇", raccoon: "🦝", otter: "🦦", skunk: "🦨", kangaroo: "🦘",
+    alien: "👽", robot: "🤖", ghost: "👻", dragonfly: "🪰",
+  };
+
+  function hashString(str) {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) {
+      h = (Math.imul(h, 31) + str.charCodeAt(i)) >>> 0;
+    }
+    return h;
+  }
+
+  const CREATURE_PALETTE = ["#e63946", "#f4a261", "#e9c46a", "#2a9d8f", "#457b9d", "#8e7cc3", "#ff6f91", "#43aa8b"];
+
+  function spawnGeneratedCritter(desc, dropX, dropY) {
+    const h = hashString(desc.toLowerCase());
+    const size = 20 + (h % 12);
+    const color = CREATURE_PALETTE[h % CREATURE_PALETTE.length];
+    const shapeRoll = (h >> 4) % 3;
+    const borderRadius = shapeRoll === 0 ? "50%" : shapeRoll === 1 ? "30%" : "10%";
+    const eyeCount = 1 + ((h >> 6) % 3);
+    const hasSpikes = (h >> 8) % 2 === 0;
+
+    const el = document.createElement("div");
+    el.className = "generated-critter";
+    el.style.opacity = 0;
+    el.title = desc;
+
+    const body = document.createElement("div");
+    body.className = "body";
+    body.style.width = size + "px";
+    body.style.height = size + "px";
+    body.style.background = color;
+    body.style.borderRadius = borderRadius;
+
+    if (hasSpikes) {
+      const spikeCount = 3;
+      for (let i = 0; i < spikeCount; i++) {
+        const spike = document.createElement("div");
+        spike.className = "spike";
+        spike.style.borderBottom = `6px solid ${color}`;
+        spike.style.left = (size * (i + 1)) / (spikeCount + 1) - 4 + "px";
+        body.appendChild(spike);
+      }
+    }
+
+    for (let i = 0; i < eyeCount; i++) {
+      const eye = document.createElement("div");
+      eye.className = "eye";
+      eye.style.left = (size * (i + 1)) / (eyeCount + 1) - size * 0.15 + "px";
+      body.appendChild(eye);
+    }
+
+    el.appendChild(body);
+    document.body.appendChild(el);
+
+    addCritter({
+      el,
+      x: dropX ?? Math.random() * w,
+      y: dropY ?? Math.random() * h,
+      vx: 0, vy: 0,
+      speed: 40 + Math.random() * 80,
+      halfSize: size / 2,
+      flee: false,
+      catchable: false,
+    });
+    requestAnimationFrame(() => { el.style.opacity = 1; });
+  }
+
+  function addCreatureFromDescription(desc, dropX, dropY) {
+    const lower = desc.toLowerCase();
+    const match = Object.keys(KEYWORD_EMOJI).find((word) => lower.includes(word));
+    if (match) {
+      spawnEmojiCritter(KEYWORD_EMOJI[match], dropX, dropY);
+    } else {
+      spawnGeneratedCritter(desc, dropX, dropY);
+    }
+  }
+
+  const creatureToggle = document.getElementById("creature-toggle");
+  const creatureForm = document.getElementById("creature-form");
+  const creatureInput = document.getElementById("creature-input");
+
+  creatureToggle.addEventListener("click", () => {
+    creatureToggle.style.display = "none";
+    creatureForm.classList.remove("hidden");
+    creatureInput.focus();
+  });
+
+  function closeCreatureForm() {
+    creatureForm.classList.add("hidden");
+    creatureToggle.style.display = "";
+    creatureInput.value = "";
+  }
+
+  creatureInput.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeCreatureForm();
+  });
+
+  creatureForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const desc = creatureInput.value.trim();
+    if (desc) {
+      addCreatureFromDescription(desc, Math.random() * w, Math.random() * h);
+    }
+    closeCreatureForm();
   });
 
   // --- caterpillar: the one you're after ---
