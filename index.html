@@ -219,7 +219,7 @@
     cursor: pointer;
     box-shadow: 0 1px 5px rgba(0,0,0,0.18);
   }
-  #creature-form {
+  #describe-form, #name-form {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -229,17 +229,20 @@
     padding: 6px 8px 6px 14px;
     box-shadow: 0 1px 5px rgba(0,0,0,0.18);
   }
-  #creature-form.hidden {
+  #describe-form.hidden, #name-form.hidden {
     display: none;
   }
-  #creature-input {
+  #creature-input, #creature-name-input {
     border: none;
     outline: none;
     font-size: 13px;
-    width: 180px;
+    width: 170px;
     cursor: text;
   }
-  #creature-form button[type="submit"] {
+  #creature-name-input {
+    width: 110px;
+  }
+  #describe-form button[type="submit"], #name-form button[type="submit"] {
     border: none;
     background: #333;
     color: #fff;
@@ -247,6 +250,20 @@
     padding: 6px 14px;
     font-size: 12px;
     cursor: pointer;
+    white-space: nowrap;
+  }
+  #creature-preview {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+    font-size: 20px;
+    line-height: 1;
+  }
+  #creature-preview .preview-body {
+    border-radius: inherit;
   }
 </style>
 </head>
@@ -277,8 +294,13 @@
 </div>
 <div id="creature-panel">
   <button id="creature-toggle" type="button" title="Add a creature">+</button>
-  <form id="creature-form" class="hidden">
+  <form id="describe-form" class="hidden">
     <input id="creature-input" type="text" placeholder="describe a creature..." maxlength="40" autocomplete="off">
+    <button type="submit">Generate</button>
+  </form>
+  <form id="name-form" class="hidden">
+    <span id="creature-preview"></span>
+    <input id="creature-name-input" type="text" placeholder="name it..." maxlength="20" autocomplete="off">
     <button type="submit">Add</button>
   </form>
 </div>
@@ -366,7 +388,7 @@
   });
 
   // --- decorative critters: wander only ---
-  function spawnEmojiCritter(emoji, dropX, dropY) {
+  function spawnEmojiCritter(emoji, opts = {}) {
     const el = document.createElement("div");
     el.className = "critter";
     el.textContent = emoji;
@@ -376,13 +398,14 @@
     document.body.appendChild(el);
     addCritter({
       el,
-      x: dropX ?? Math.random() * w,
-      y: dropY ?? Math.random() * h,
+      x: opts.dropX ?? Math.random() * w,
+      y: opts.dropY ?? Math.random() * h,
       vx: 0, vy: 0,
       speed: 50 + Math.random() * 90,
       halfSize: size / 2,
       flee: false,
-      catchable: false,
+      catchable: opts.catchable ?? false,
+      catchMessage: opts.catchMessage,
     });
     requestAnimationFrame(() => { el.style.opacity = 1; });
   }
@@ -420,98 +443,140 @@
 
   const CREATURE_PALETTE = ["#e63946", "#f4a261", "#e9c46a", "#2a9d8f", "#457b9d", "#8e7cc3", "#ff6f91", "#43aa8b"];
 
-  function spawnGeneratedCritter(desc, dropX, dropY) {
-    const h = hashString(desc.toLowerCase());
-    const size = 20 + (h % 12);
-    const color = CREATURE_PALETTE[h % CREATURE_PALETTE.length];
+  function resolveCreature(desc) {
+    const lower = desc.toLowerCase();
+    const match = Object.keys(KEYWORD_EMOJI).find((word) => lower.includes(word));
+    if (match) {
+      return { type: "emoji", emoji: KEYWORD_EMOJI[match], desc };
+    }
+    const h = hashString(lower);
     const shapeRoll = (h >> 4) % 3;
-    const borderRadius = shapeRoll === 0 ? "50%" : shapeRoll === 1 ? "30%" : "10%";
-    const eyeCount = 1 + ((h >> 6) % 3);
-    const hasSpikes = (h >> 8) % 2 === 0;
+    return {
+      type: "generated",
+      desc,
+      size: 20 + (h % 12),
+      color: CREATURE_PALETTE[h % CREATURE_PALETTE.length],
+      borderRadius: shapeRoll === 0 ? "50%" : shapeRoll === 1 ? "30%" : "10%",
+      eyeCount: 1 + ((h >> 6) % 3),
+      hasSpikes: (h >> 8) % 2 === 0,
+    };
+  }
 
-    const el = document.createElement("div");
-    el.className = "generated-critter";
-    el.style.opacity = 0;
-    el.title = desc;
-
+  function buildGeneratedBody(d) {
     const body = document.createElement("div");
     body.className = "body";
-    body.style.width = size + "px";
-    body.style.height = size + "px";
-    body.style.background = color;
-    body.style.borderRadius = borderRadius;
+    body.style.width = d.size + "px";
+    body.style.height = d.size + "px";
+    body.style.background = d.color;
+    body.style.borderRadius = d.borderRadius;
 
-    if (hasSpikes) {
+    if (d.hasSpikes) {
       const spikeCount = 3;
       for (let i = 0; i < spikeCount; i++) {
         const spike = document.createElement("div");
         spike.className = "spike";
-        spike.style.borderBottom = `6px solid ${color}`;
-        spike.style.left = (size * (i + 1)) / (spikeCount + 1) - 4 + "px";
+        spike.style.borderBottom = `6px solid ${d.color}`;
+        spike.style.left = (d.size * (i + 1)) / (spikeCount + 1) - 4 + "px";
         body.appendChild(spike);
       }
     }
 
-    for (let i = 0; i < eyeCount; i++) {
+    for (let i = 0; i < d.eyeCount; i++) {
       const eye = document.createElement("div");
       eye.className = "eye";
-      eye.style.left = (size * (i + 1)) / (eyeCount + 1) - size * 0.15 + "px";
+      eye.style.left = (d.size * (i + 1)) / (d.eyeCount + 1) - d.size * 0.15 + "px";
       body.appendChild(eye);
     }
+    return body;
+  }
 
-    el.appendChild(body);
+  function spawnGeneratedCritter(d, opts = {}) {
+    const el = document.createElement("div");
+    el.className = "generated-critter";
+    el.style.opacity = 0;
+    el.title = d.desc;
+    el.appendChild(buildGeneratedBody(d));
     document.body.appendChild(el);
 
     addCritter({
       el,
-      x: dropX ?? Math.random() * w,
-      y: dropY ?? Math.random() * h,
+      x: opts.dropX ?? Math.random() * w,
+      y: opts.dropY ?? Math.random() * h,
       vx: 0, vy: 0,
       speed: 40 + Math.random() * 80,
-      halfSize: size / 2,
+      halfSize: d.size / 2,
       flee: false,
-      catchable: false,
+      catchable: opts.catchable ?? false,
+      catchMessage: opts.catchMessage,
     });
     requestAnimationFrame(() => { el.style.opacity = 1; });
   }
 
-  function addCreatureFromDescription(desc, dropX, dropY) {
-    const lower = desc.toLowerCase();
-    const match = Object.keys(KEYWORD_EMOJI).find((word) => lower.includes(word));
-    if (match) {
-      spawnEmojiCritter(KEYWORD_EMOJI[match], dropX, dropY);
+  function renderPreview(descriptor) {
+    const preview = document.getElementById("creature-preview");
+    preview.innerHTML = "";
+    if (descriptor.type === "emoji") {
+      preview.textContent = descriptor.emoji;
     } else {
-      spawnGeneratedCritter(desc, dropX, dropY);
+      preview.appendChild(buildGeneratedBody(descriptor));
+    }
+  }
+
+  function finalizeCreature(descriptor, name, dropX, dropY) {
+    const opts = { dropX, dropY, catchable: true, catchMessage: `Hi I am ${name}` };
+    if (descriptor.type === "emoji") {
+      spawnEmojiCritter(descriptor.emoji, opts);
+    } else {
+      spawnGeneratedCritter(descriptor, opts);
     }
   }
 
   const creatureToggle = document.getElementById("creature-toggle");
-  const creatureForm = document.getElementById("creature-form");
+  const describeForm = document.getElementById("describe-form");
   const creatureInput = document.getElementById("creature-input");
+  const nameForm = document.getElementById("name-form");
+  const nameInput = document.getElementById("creature-name-input");
+  let pendingCreature = null;
 
   creatureToggle.addEventListener("click", () => {
     creatureToggle.style.display = "none";
-    creatureForm.classList.remove("hidden");
+    describeForm.classList.remove("hidden");
     creatureInput.focus();
   });
 
-  function closeCreatureForm() {
-    creatureForm.classList.add("hidden");
+  function resetCreaturePanel() {
+    describeForm.classList.add("hidden");
+    nameForm.classList.add("hidden");
     creatureToggle.style.display = "";
     creatureInput.value = "";
+    nameInput.value = "";
+    pendingCreature = null;
   }
 
   creatureInput.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeCreatureForm();
+    if (e.key === "Escape") resetCreaturePanel();
+  });
+  nameInput.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") resetCreaturePanel();
   });
 
-  creatureForm.addEventListener("submit", (e) => {
+  describeForm.addEventListener("submit", (e) => {
     e.preventDefault();
     const desc = creatureInput.value.trim();
-    if (desc) {
-      addCreatureFromDescription(desc, Math.random() * w, Math.random() * h);
-    }
-    closeCreatureForm();
+    if (!desc) return;
+    pendingCreature = resolveCreature(desc);
+    renderPreview(pendingCreature);
+    describeForm.classList.add("hidden");
+    nameForm.classList.remove("hidden");
+    nameInput.focus();
+  });
+
+  nameForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (!pendingCreature) { resetCreaturePanel(); return; }
+    const name = nameInput.value.trim() || pendingCreature.desc;
+    finalizeCreature(pendingCreature, name, Math.random() * w, Math.random() * h);
+    resetCreaturePanel();
   });
 
   // --- caterpillar: the one you're after ---
@@ -545,6 +610,7 @@
     fleeSpeed: 230,
     fleeRadius: 120,
     catchable: true,
+    catchMessage: "Hello, I am Hannah.",
   };
   addCritter(caterpillar);
 
@@ -562,6 +628,7 @@
     clearInterval(critter.dirTimer);
     critter.vx = 0;
     critter.vy = 0;
+    caughtText.textContent = critter.catchMessage || "";
     caughtText.style.opacity = 1;
 
     setTimeout(() => {
