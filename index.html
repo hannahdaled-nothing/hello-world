@@ -24,7 +24,7 @@
     user-select: none;
     pointer-events: none;
   }
-  .critter {
+  .creature {
     position: fixed;
     top: 0;
     left: 0;
@@ -32,6 +32,11 @@
     user-select: none;
     pointer-events: none;
     will-change: transform;
+    transition: opacity 0.3s ease;
+  }
+  .creature svg {
+    display: block;
+    overflow: visible;
   }
   #caterpillar {
     position: fixed;
@@ -131,10 +136,6 @@
     left: 5.5px;
     z-index: 1;
   }
-  .bear {
-    font-size: 26px;
-    line-height: 1;
-  }
   #caught {
     position: fixed;
     top: 0;
@@ -158,46 +159,6 @@
     pointer-events: none;
     will-change: transform;
     overflow: visible;
-  }
-  .critter, .generated-critter {
-    transition: opacity 0.3s ease;
-  }
-  .generated-critter {
-    position: fixed;
-    top: 0;
-    left: 0;
-    pointer-events: none;
-    user-select: none;
-    will-change: transform;
-  }
-  .generated-critter .body {
-    position: relative;
-  }
-  .generated-critter .eye {
-    position: absolute;
-    width: 30%;
-    height: 30%;
-    background: #fff;
-    border-radius: 50%;
-    top: 20%;
-  }
-  .generated-critter .eye::after {
-    content: "";
-    position: absolute;
-    width: 45%;
-    height: 45%;
-    background: #222;
-    border-radius: 50%;
-    top: 27%;
-    left: 27%;
-  }
-  .generated-critter .spike {
-    position: absolute;
-    width: 0;
-    height: 0;
-    border-left: 4px solid transparent;
-    border-right: 4px solid transparent;
-    top: -6px;
   }
   #creature-panel {
     position: fixed;
@@ -256,14 +217,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 26px;
-    height: 26px;
+    width: 34px;
+    height: 34px;
     flex-shrink: 0;
-    font-size: 20px;
-    line-height: 1;
-  }
-  #creature-preview .preview-body {
-    border-radius: inherit;
   }
 </style>
 </head>
@@ -379,60 +335,7 @@
     decorLayer.appendChild(flower);
   }
 
-  ["🐻", "🐻", "🐨"].forEach((emoji) => {
-    const bear = document.createElement("div");
-    bear.className = "static-decor bear";
-    bear.textContent = emoji;
-    randPos(bear, 70);
-    decorLayer.appendChild(bear);
-  });
-
-  // --- decorative critters: wander only ---
-  function spawnEmojiCritter(emoji, opts = {}) {
-    const el = document.createElement("div");
-    el.className = "critter";
-    el.textContent = emoji;
-    const size = 20 + Math.random() * 10;
-    el.style.fontSize = size + "px";
-    el.style.opacity = 0;
-    document.body.appendChild(el);
-    addCritter({
-      el,
-      x: opts.dropX ?? Math.random() * w,
-      y: opts.dropY ?? Math.random() * h,
-      vx: 0, vy: 0,
-      speed: 50 + Math.random() * 90,
-      halfSize: size / 2,
-      flee: false,
-      catchable: opts.catchable ?? false,
-      catchMessage: opts.catchMessage,
-    });
-    requestAnimationFrame(() => { el.style.opacity = 1; });
-  }
-
-  const ANIMALS = ["🐀", "🐁", "🐇", "🐿️", "🦔", "🐦", "🐤", "🐝", "🐞", "🦋", "🦋", "🐜", "🕷️", "🪲", "🦗"];
-  ANIMALS.forEach((emoji) => spawnEmojiCritter(emoji));
-
-  // --- user-generated creatures ---
-  const KEYWORD_EMOJI = {
-    cat: "🐱", kitten: "🐱", dog: "🐶", puppy: "🐶", fox: "🦊", wolf: "🐺",
-    bear: "🐻", panda: "🐼", koala: "🐨", lion: "🦁", tiger: "🐯", cow: "🐮",
-    pig: "🐷", horse: "🐴", unicorn: "🦄", zebra: "🦓", deer: "🦌", camel: "🐫",
-    elephant: "🐘", rhino: "🦏", hippo: "🦛", monkey: "🐵", gorilla: "🦍",
-    sheep: "🐑", goat: "🐐", chicken: "🐔", rooster: "🐓", turkey: "🦃",
-    penguin: "🐧", owl: "🦉", eagle: "🦅", parrot: "🦜", flamingo: "🦩",
-    duck: "🦆", swan: "🦢", peacock: "🦚", frog: "🐸", turtle: "🐢",
-    lizard: "🦎", snake: "🐍", dragon: "🐉", dinosaur: "🦖", crocodile: "🐊",
-    fish: "🐟", whale: "🐳", dolphin: "🐬", shark: "🦈", octopus: "🐙",
-    crab: "🦀", lobster: "🦞", shrimp: "🦐", snail: "🐌", worm: "🪱",
-    spider: "🕷️", scorpion: "🦂", ant: "🐜", bee: "🐝", beetle: "🪲",
-    cricket: "🦗", ladybug: "🐞", butterfly: "🦋", caterpillar: "🐛",
-    mosquito: "🦟", squid: "🦑", squirrel: "🐿️", hedgehog: "🦔",
-    rabbit: "🐇", bunny: "🐇", mouse: "🐭", rat: "🐀", hamster: "🐹",
-    bat: "🦇", raccoon: "🦝", otter: "🦦", skunk: "🦨", kangaroo: "🦘",
-    alien: "👽", robot: "🤖", ghost: "👻", dragonfly: "🪰",
-  };
-
+  // --- hand-drawn creature illustration engine ---
   function hashString(str) {
     let h = 0;
     for (let i = 0; i < str.length; i++) {
@@ -441,95 +344,321 @@
     return h;
   }
 
-  const CREATURE_PALETTE = ["#e63946", "#f4a261", "#e9c46a", "#2a9d8f", "#457b9d", "#8e7cc3", "#ff6f91", "#43aa8b"];
-
-  function resolveCreature(desc) {
-    const lower = desc.toLowerCase();
-    const match = Object.keys(KEYWORD_EMOJI).find((word) => lower.includes(word));
-    if (match) {
-      return { type: "emoji", emoji: KEYWORD_EMOJI[match], desc };
-    }
-    const h = hashString(lower);
-    const shapeRoll = (h >> 4) % 3;
-    return {
-      type: "generated",
-      desc,
-      size: 20 + (h % 12),
-      color: CREATURE_PALETTE[h % CREATURE_PALETTE.length],
-      borderRadius: shapeRoll === 0 ? "50%" : shapeRoll === 1 ? "30%" : "10%",
-      eyeCount: 1 + ((h >> 6) % 3),
-      hasSpikes: (h >> 8) % 2 === 0,
+  function mulberry32(seed) {
+    return function () {
+      seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
   }
 
-  function buildGeneratedBody(d) {
-    const body = document.createElement("div");
-    body.className = "body";
-    body.style.width = d.size + "px";
-    body.style.height = d.size + "px";
-    body.style.background = d.color;
-    body.style.borderRadius = d.borderRadius;
+  function blobPath(cx, cy, rx, ry, rand, points, jitter) {
+    const pts = [];
+    for (let i = 0; i < points; i++) {
+      const a = (i / points) * Math.PI * 2;
+      const jr = 1 + (rand() * 2 - 1) * jitter;
+      pts.push([cx + Math.cos(a) * rx * jr, cy + Math.sin(a) * ry * jr]);
+    }
+    let d = `M ${(pts[0][0] + pts[points - 1][0]) / 2} ${(pts[0][1] + pts[points - 1][1]) / 2} `;
+    for (let i = 0; i < points; i++) {
+      const [px, py] = pts[i];
+      const [nx, ny] = pts[(i + 1) % points];
+      d += `Q ${px} ${py} ${(px + nx) / 2} ${(py + ny) / 2} `;
+    }
+    return d + "Z";
+  }
 
-    if (d.hasSpikes) {
-      const spikeCount = 3;
-      for (let i = 0; i < spikeCount; i++) {
-        const spike = document.createElement("div");
-        spike.className = "spike";
-        spike.style.borderBottom = `6px solid ${d.color}`;
-        spike.style.left = (d.size * (i + 1)) / (spikeCount + 1) - 4 + "px";
-        body.appendChild(spike);
+  const INK = "#2e2620";
+
+  // a few overlaid, independently-jittered passes -- the scratchy multi-stroke
+  // look of a quick pen drawing, rather than one clean vector outline
+  function sketchyStrokes(pathFn, rand, passes, baseWidth, baseOpacity) {
+    let out = "";
+    for (let p = 0; p < passes; p++) {
+      const w = (baseWidth * (0.65 + rand() * 0.7)).toFixed(2);
+      const op = (baseOpacity * (0.6 + rand() * 0.5)).toFixed(2);
+      out += `<path d="${pathFn()}" fill="none" stroke="${INK}" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" opacity="${op}"/>`;
+    }
+    return out;
+  }
+
+  // a loose, undersized wash of color that doesn't quite line up with the
+  // ink -- like a quick watercolor pass rather than a fill inside the lines
+  function colorWash(cx, cy, rx, ry, rand, color) {
+    const d = blobPath(cx, cy, rx * 0.86, ry * 0.86, rand, 7, 0.24);
+    const dx = (rand() - 0.5) * 5, dy = (rand() - 0.5) * 5;
+    return `<path d="${d}" fill="${color}" opacity="0.5" transform="translate(${dx.toFixed(1)} ${dy.toFixed(1)})"/>`;
+  }
+
+  const BODY_SHAPES = {
+    round: [26, 24], oval: [21, 29], long: [32, 17], tall: [19, 30],
+  };
+
+  function creatureSVG(traits, seed) {
+    const rand = mulberry32(seed);
+    const px = traits.size;
+    const [rx, ry] = BODY_SHAPES[traits.bodyShape] || BODY_SHAPES.round;
+    const cx = 48, cy = 56;
+    const bodyColor = traits.bodyColor;
+    const tailColor = traits.tailColor || bodyColor;
+    const wingColor = traits.wingColor || "rgba(120,110,100,0.25)";
+    const hasSnoutLines = traits.ears === "round" || traits.ears === "pointy" || traits.ears === "floppy";
+    const parts = [];
+
+    // tail: a loose scribbled line, never a filled shape
+    const tailX = cx + rx - 6, tailY = cy + 2;
+    if (traits.tail === "fluffy") {
+      parts.push(sketchyStrokes(() => `M ${tailX} ${tailY} q 8 -10 16 -4 q 6 4 2 10 q -3 6 -10 2 q 10 6 14 -2`, rand, 2, 1.3, 0.75));
+    } else if (traits.tail === "curly") {
+      parts.push(sketchyStrokes(() => `M ${tailX} ${tailY} q 14 -4 14 8 q 0 10 -10 8 q -7 -1 -3 -7`, rand, 2, 1.3, 0.75));
+    } else if (traits.tail === "long") {
+      parts.push(sketchyStrokes(() => `M ${tailX} ${tailY} q 20 2 24 -14 q 2 -8 -6 -11`, rand, 2, 1.3, 0.75));
+    } else if (traits.tail === "fin") {
+      parts.push(sketchyStrokes(() => `M ${tailX} ${tailY - 8} L ${tailX + 15} ${tailY - 13} L ${tailX + 13} ${tailY} L ${tailX + 15} ${tailY + 13} L ${tailX} ${tailY + 8}`, rand, 2, 1.2, 0.75));
+    }
+
+    if (traits.wings === "bug") {
+      parts.push(`<ellipse cx="${cx + 6}" cy="${cy - 10}" rx="14" ry="8" fill="${wingColor}" transform="rotate(-18 ${cx + 6} ${cy - 10})"/>`);
+      parts.push(sketchyStrokes(() => `M ${cx - 6} ${cy - 8} Q ${cx + 6} ${cy - 24} ${cx + 20} ${cy - 10}`, rand, 2, 1, 0.6));
+    } else if (traits.wings === "bird") {
+      parts.push(`<path d="M ${cx + 4} ${cy - 6} q 22 -4 20 16 q -14 4 -22 -8 Z" fill="${wingColor}"/>`);
+      parts.push(sketchyStrokes(() => `M ${cx + 4} ${cy - 6} q 22 -4 20 16`, rand, 2, 1.1, 0.7));
+    }
+
+    const earLx = cx - rx * 0.6, earLy = cy - ry * 0.85;
+    const earRx = cx + rx * 0.05, earRy = cy - ry * 0.95;
+    if (traits.ears === "round") {
+      parts.push(sketchyStrokes(() => `M ${earLx - 7} ${earLy + 6} Q ${earLx - 8} ${earLy - 8} ${earLx} ${earLy - 9} Q ${earLx + 8} ${earLy - 7} ${earLx + 6} ${earLy + 7}`, rand, 2, 1.1, 0.75));
+      parts.push(sketchyStrokes(() => `M ${earRx - 7} ${earRy + 6} Q ${earRx - 8} ${earRy - 8} ${earRx} ${earRy - 9} Q ${earRx + 8} ${earRy - 7} ${earRx + 6} ${earRy + 7}`, rand, 2, 1.1, 0.75));
+    } else if (traits.ears === "pointy") {
+      parts.push(sketchyStrokes(() => `M ${earLx - 8} ${earLy + 8} Q ${earLx - 2} ${earLy - 14} ${earLx + 6} ${earLy + 6}`, rand, 2, 1.1, 0.75));
+      parts.push(sketchyStrokes(() => `M ${earRx - 6} ${earRy + 6} Q ${earRx + 2} ${earRy - 14} ${earRx + 8} ${earRy + 8}`, rand, 2, 1.1, 0.75));
+    } else if (traits.ears === "floppy") {
+      parts.push(sketchyStrokes(() => `M ${earLx - 2} ${earLy - 6} Q ${earLx - 12} ${earLy + 10} ${earLx - 4} ${earLy + 24}`, rand, 2, 1.1, 0.75));
+      parts.push(sketchyStrokes(() => `M ${earRx + 2} ${earRy - 6} Q ${earRx + 12} ${earRy + 10} ${earRx + 4} ${earRy + 24}`, rand, 2, 1.1, 0.75));
+    } else if (traits.ears === "antenna") {
+      parts.push(sketchyStrokes(() => `M ${earLx} ${earLy + 6} Q ${earLx - 6} ${earLy - 14} ${earLx - 2} ${earLy - 20}`, rand, 2, 1, 0.75));
+      parts.push(sketchyStrokes(() => `M ${earRx} ${earRy + 6} Q ${earRx + 8} ${earRy - 14} ${earRx + 4} ${earRy - 20}`, rand, 2, 1, 0.75));
+    }
+
+    // loose color wash first, then the scratchy ink outline drawn on top,
+    // slightly larger and never quite matching the wash beneath it
+    parts.push(colorWash(cx, cy, rx, ry, rand, bodyColor));
+    parts.push(sketchyStrokes(() => blobPath(cx, cy, rx, ry, rand, 12, 0.1), rand, 3, 1.5, 0.85));
+
+    if (traits.tail === "shell") {
+      parts.push(colorWash(cx, cy - ry * 0.15, rx * 0.85, ry * 0.65, rand, tailColor));
+      parts.push(sketchyStrokes(() => blobPath(cx, cy - ry * 0.15, rx * 0.88, ry * 0.68, rand, 8, 0.08), rand, 2, 1.2, 0.8));
+    }
+
+    if (traits.pattern === "spots") {
+      for (let i = 0; i < 4; i++) {
+        const a = (rand() - 0.5) * Math.PI, r = 0.28 * rx + rand() * rx * 0.5;
+        const sx = cx + Math.cos(a) * r, sy = cy + Math.sin(a) * r * (ry / rx);
+        parts.push(sketchyStrokes(() => `M ${sx - 2} ${sy} q 2 -3 4 0 q -2 3 -4 0`, rand, 1, 1, 0.7));
+      }
+    } else if (traits.pattern === "stripes") {
+      for (let i = 0; i < 3; i++) {
+        const yy = cy - ry * 0.5 + (i * ry) / 2.2;
+        parts.push(sketchyStrokes(() => `M ${cx - rx * 0.75} ${yy} Q ${cx} ${yy + 6} ${cx + rx * 0.75} ${yy}`, rand, 1, 1.1, 0.65));
       }
     }
 
-    for (let i = 0; i < d.eyeCount; i++) {
-      const eye = document.createElement("div");
-      eye.className = "eye";
-      eye.style.left = (d.size * (i + 1)) / (d.eyeCount + 1) - d.size * 0.15 + "px";
-      body.appendChild(eye);
+    const snoutX = cx - rx * 0.85, snoutY = cy + ry * 0.25;
+    if (traits.snout === "beak") {
+      parts.push(`<path d="M ${snoutX + 6} ${snoutY - 4} L ${snoutX - 8} ${snoutY} L ${snoutX + 6} ${snoutY + 4} Z" fill="#e8b23d" opacity="0.7"/>`);
+      parts.push(sketchyStrokes(() => `M ${snoutX + 6} ${snoutY - 4} L ${snoutX - 8} ${snoutY} L ${snoutX + 6} ${snoutY + 4}`, rand, 2, 1, 0.75));
+    } else if (traits.snout === "trunk") {
+      parts.push(sketchyStrokes(() => `M ${snoutX + 4} ${snoutY - 4} Q ${snoutX - 10} ${snoutY} ${snoutX - 6} ${snoutY + 16}`, rand, 2, 1.6, 0.8));
+    } else {
+      parts.push(sketchyStrokes(() => `M ${snoutX - 2} ${snoutY - 1} q 3 -2 5 1`, rand, 1, 1, 0.7));
     }
-    return body;
+
+    if (hasSnoutLines) {
+      for (const dy of [-2, 1, 4]) {
+        parts.push(sketchyStrokes(() => `M ${snoutX - 4} ${snoutY + dy} q -8 ${dy < 1 ? -1 : 1} -13 ${dy < 1 ? -3 : 2}`, rand, 1, 0.7, 0.5));
+      }
+    }
+
+    if (traits.horn) {
+      parts.push(sketchyStrokes(() => `M ${cx - 10} ${cy - ry * 0.8} L ${cx - 4} ${cy - ry * 1.6} L ${cx - 2} ${cy - ry * 0.75}`, rand, 2, 1.2, 0.8));
+    }
+
+    const eyeY = cy - ry * 0.15;
+    function sketchyEye(x, y) {
+      const r = 1.6 + rand() * 0.6;
+      return `<circle cx="${x + (rand() - 0.5)}" cy="${y + (rand() - 0.5)}" r="${r.toFixed(2)}" fill="${INK}"/>` +
+        sketchyStrokes(() => `M ${x - r - 2} ${y - r - 3} Q ${x} ${y - r - 6} ${x + r + 2} ${y - r - 2}`, rand, 1, 0.9, 0.55);
+    }
+    if (traits.eyeCount === 1) {
+      parts.push(sketchyEye(cx - rx * 0.25, eyeY));
+    } else {
+      parts.push(sketchyEye(cx - rx * 0.5, eyeY));
+      parts.push(sketchyEye(cx - rx * 0.12, eyeY - 2));
+      if (traits.eyeCount === 3) parts.push(sketchyEye(cx - rx * 0.3, eyeY - 14));
+    }
+
+    if (traits.mouth === "smile") {
+      parts.push(sketchyStrokes(() => `M ${cx - rx * 0.48} ${eyeY + 13} Q ${cx - rx * 0.25} ${eyeY + 19} ${cx - rx * 0.02} ${eyeY + 12}`, rand, 2, 1, 0.75));
+    } else if (traits.mouth === "open") {
+      parts.push(sketchyStrokes(() => `M ${cx - rx * 0.32} ${eyeY + 12} q 4 8 10 0`, rand, 2, 1, 0.75));
+    }
+
+    return `<svg viewBox="0 0 100 100" width="${px}" height="${px}">${parts.join("")}</svg>`;
   }
 
-  function spawnGeneratedCritter(d, opts = {}) {
+  function T(o) {
+    return Object.assign({
+      size: 42, bodyShape: "round", bodyColor: "#d9a066",
+      pattern: "none", patternColor: "transparent",
+      ears: "round", earColor: null,
+      tail: "none", tailColor: null,
+      snout: "round", snoutColor: null,
+      wings: false, wingColor: null,
+      horn: false, eyeCount: 2, blush: true, mouth: "smile",
+    }, o);
+  }
+
+  const SPECIES_PRESETS = {
+    rat: T({ bodyColor: "#b7aca0", ears: "round", tail: "long", size: 38 }),
+    mouse: T({ bodyColor: "#e9dfd3", ears: "round", tail: "long", size: 34 }),
+    rabbit: T({ bodyColor: "#f5efe6", ears: "floppy", tail: "fluffy", size: 40 }),
+    squirrel: T({ bodyColor: "#c17a3f", ears: "round", tail: "fluffy", size: 38 }),
+    hedgehog: T({ bodyColor: "#8a6d5c", ears: "round", tail: "none", pattern: "spots", patternColor: "#5a4638", size: 36 }),
+    cat: T({ bodyColor: "#e8a563", ears: "pointy", tail: "long", pattern: "stripes", patternColor: "#c97f36", size: 40 }),
+    dog: T({ bodyColor: "#d8b27a", ears: "floppy", tail: "curly", size: 42 }),
+    fox: T({ bodyColor: "#e8703a", ears: "pointy", tail: "fluffy", tailColor: "#fff6ec", size: 40 }),
+    bear: T({ bodyColor: "#8a5a34", ears: "round", tail: "none", size: 46 }),
+    koala: T({ bodyColor: "#aab3b6", ears: "round", tail: "none", size: 42 }),
+    lion: T({ bodyColor: "#e3ab4e", ears: "round", tail: "long", size: 46, horn: false }),
+    tiger: T({ bodyColor: "#eb9b3e", ears: "round", tail: "long", pattern: "stripes", patternColor: "#2b2b2b", size: 44 }),
+    cow: T({ bodyColor: "#f5efe6", ears: "round", tail: "long", pattern: "spots", patternColor: "#3a2c22", size: 46 }),
+    pig: T({ bodyColor: "#f4b8c4", ears: "pointy", tail: "curly", snout: "round", snoutColor: "#e893a4", size: 40 }),
+    horse: T({ bodyColor: "#a9764f", ears: "pointy", tail: "long", bodyShape: "tall", size: 46 }),
+    deer: T({ bodyColor: "#c68a56", ears: "pointy", tail: "fluffy", tailColor: "#fff6ec", horn: true, size: 42 }),
+    elephant: T({ bodyColor: "#a9a9ad", ears: "floppy", snout: "trunk", tail: "none", size: 48 }),
+    monkey: T({ bodyColor: "#a9744b", ears: "round", tail: "long", snoutColor: "#f0dcc0", size: 40 }),
+    sheep: T({ bodyColor: "#f3efe4", ears: "floppy", tail: "fluffy", size: 42 }),
+    owl: T({ bodyColor: "#8d7256", ears: "pointy", wings: "bird", tail: "none", bodyShape: "tall", eyeCount: 2, size: 38 }),
+    duck: T({ bodyColor: "#f4d35e", ears: "none", snout: "beak", wings: "bird", tail: "fluffy", tailColor: "#f4d35e", size: 36 }),
+    chicken: T({ bodyColor: "#f7f1e3", ears: "none", snout: "beak", wings: "bird", tail: "fluffy", tailColor: "#f7f1e3", size: 36 }),
+    penguin: T({ bodyColor: "#3a3a42", ears: "none", snout: "beak", wings: "bird", bodyShape: "tall", snoutColor: "#3a3a42", size: 40 }),
+    bee: T({ bodyColor: "#f4c542", ears: "antenna", wings: "bug", tail: "none", pattern: "stripes", patternColor: "#2b2b2b", bodyShape: "oval", size: 30 }),
+    ladybug: T({ bodyColor: "#e5484d", ears: "antenna", wings: "bug", tail: "none", pattern: "spots", patternColor: "#2b2b2b", bodyShape: "round", size: 28 }),
+    butterfly: T({ bodyColor: "#8e7cc3", ears: "antenna", wings: "bug", tail: "none", wingColor: "rgba(255,150,200,0.65)", bodyShape: "long", size: 32 }),
+    ant: T({ bodyColor: "#2b2b2b", ears: "antenna", tail: "none", bodyShape: "long", size: 26, snoutColor: "#2b2b2b" }),
+    spider: T({ bodyColor: "#4a3b52", ears: "antenna", tail: "none", eyeCount: 3, size: 30, snoutColor: "#4a3b52" }),
+    beetle: T({ bodyColor: "#3f7d5c", ears: "antenna", tail: "none", wings: "bug", wingColor: "rgba(120,220,170,0.5)", size: 30 }),
+    cricket: T({ bodyColor: "#8fae3b", ears: "antenna", tail: "long", bodyShape: "long", size: 28 }),
+    snake: T({ bodyColor: "#5ba168", ears: "none", tail: "long", bodyShape: "long", pattern: "spots", patternColor: "#3f7a4c", size: 40, snoutColor: "#5ba168" }),
+    lizard: T({ bodyColor: "#6cbf6c", ears: "none", tail: "long", bodyShape: "long", size: 36, snoutColor: "#6cbf6c" }),
+    frog: T({ bodyColor: "#7fc36a", ears: "none", tail: "none", eyeCount: 2, size: 38, snoutColor: "#7fc36a" }),
+    turtle: T({ bodyColor: "#8fae5c", ears: "none", tail: "shell", tailColor: "#5c8a4a", size: 40, snoutColor: "#8fae5c" }),
+    fish: T({ bodyColor: "#5aa9e6", ears: "none", tail: "fin", bodyShape: "oval", size: 36, snoutColor: "#5aa9e6" }),
+    octopus: T({ bodyColor: "#c774c7", ears: "none", tail: "fluffy", tailColor: "#c774c7", eyeCount: 2, size: 38, snoutColor: "#c774c7" }),
+    crab: T({ bodyColor: "#e8703a", ears: "round", earColor: "#e8703a", tail: "none", bodyShape: "long", size: 32, snoutColor: "#e8703a" }),
+    snail: T({ bodyColor: "#c9a06a", ears: "antenna", tail: "shell", tailColor: "#e8703a", bodyShape: "long", size: 30 }),
+    unicorn: T({ bodyColor: "#fbeff9", ears: "pointy", tail: "fluffy", tailColor: "#c9a6f0", horn: true, bodyShape: "tall", size: 44 }),
+    dragon: T({ bodyColor: "#4f9d6e", ears: "pointy", tail: "long", wings: "bird", wingColor: "rgba(180,240,200,0.6)", horn: true, size: 44 }),
+    alien: T({ bodyColor: "#8ee6c0", ears: "none", tail: "none", eyeCount: 2, bodyShape: "tall", size: 38, snoutColor: "#8ee6c0" }),
+    robot: T({ bodyColor: "#b7c4d1", ears: "none", tail: "none", eyeCount: 2, bodyShape: "round", size: 40, snoutColor: "#b7c4d1", mouth: "open" }),
+    ghost: T({ bodyColor: "#f4f1ff", ears: "none", tail: "none", eyeCount: 2, bodyShape: "tall", size: 38, snoutColor: "#f4f1ff", mouth: "open" }),
+  };
+
+  const SPECIES_ALIASES = {
+    kitten: "cat", puppy: "dog", wolf: "dog", panda: "bear", gorilla: "monkey",
+    zebra: "horse", camel: "horse", rhino: "cow", hippo: "cow", goat: "sheep",
+    rooster: "chicken", turkey: "chicken", eagle: "owl", parrot: "owl",
+    flamingo: "duck", swan: "duck", peacock: "duck", dinosaur: "lizard",
+    crocodile: "lizard", whale: "fish", dolphin: "fish", shark: "fish",
+    lobster: "crab", shrimp: "crab", worm: "snail", mosquito: "bee",
+    dragonfly: "butterfly", scorpion: "spider", squid: "octopus",
+    hamster: "mouse", bunny: "rabbit", raccoon: "cat", otter: "cat",
+    skunk: "cat", kangaroo: "rabbit", bat: "owl", caterpillar: "snail",
+  };
+
+  const CREATURE_PALETTE = ["#e8703a", "#f4c542", "#5ba168", "#5aa9e6", "#8e7cc3", "#e5484d", "#4f9d6e", "#c774c7"];
+
+  function resolveCreature(desc) {
+    const lower = desc.toLowerCase();
+    const keys = Object.keys(SPECIES_PRESETS).concat(Object.keys(SPECIES_ALIASES));
+    const match = keys.find((word) => lower.includes(word));
+    if (match) {
+      const key = SPECIES_ALIASES[match] || match;
+      return { type: "species", traits: SPECIES_PRESETS[key], desc, seed: hashString(lower) };
+    }
+    const h = hashString(lower);
+    const rand = mulberry32(h);
+    const shapes = ["round", "oval", "long", "tall"];
+    const ears = ["none", "round", "pointy", "floppy", "antenna"];
+    const tails = ["none", "fluffy", "curly", "long", "fin", "shell"];
+    const snouts = ["round", "beak", "trunk", "none"];
+    return {
+      type: "generated",
+      desc,
+      seed: h,
+      traits: T({
+        size: 30 + Math.floor(rand() * 16),
+        bodyColor: CREATURE_PALETTE[Math.floor(rand() * CREATURE_PALETTE.length)],
+        bodyShape: shapes[Math.floor(rand() * shapes.length)],
+        pattern: rand() < 0.5 ? "spots" : "stripes",
+        patternColor: CREATURE_PALETTE[Math.floor(rand() * CREATURE_PALETTE.length)],
+        ears: ears[Math.floor(rand() * ears.length)],
+        tail: tails[Math.floor(rand() * tails.length)],
+        snout: snouts[Math.floor(rand() * snouts.length)],
+        wings: rand() < 0.25 ? "bug" : false,
+        horn: rand() < 0.2,
+        eyeCount: 1 + Math.floor(rand() * 3),
+        blush: rand() < 0.8,
+        mouth: rand() < 0.7 ? "smile" : "open",
+      }),
+    };
+  }
+
+  function spawnSpeciesCritter(descriptor, opts = {}) {
     const el = document.createElement("div");
-    el.className = "generated-critter";
+    el.className = "creature";
     el.style.opacity = 0;
-    el.title = d.desc;
-    el.appendChild(buildGeneratedBody(d));
+    if (descriptor.desc) el.title = descriptor.desc;
+    el.innerHTML = creatureSVG(descriptor.traits, descriptor.seed);
     document.body.appendChild(el);
 
+    const halfSize = descriptor.traits.size / 2;
     addCritter({
       el,
       x: opts.dropX ?? Math.random() * w,
       y: opts.dropY ?? Math.random() * h,
       vx: 0, vy: 0,
       speed: 40 + Math.random() * 80,
-      halfSize: d.size / 2,
+      halfSize,
       flee: false,
       catchable: opts.catchable ?? false,
       catchMessage: opts.catchMessage,
     });
     requestAnimationFrame(() => { el.style.opacity = 1; });
+    return el;
   }
 
   function renderPreview(descriptor) {
     const preview = document.getElementById("creature-preview");
-    preview.innerHTML = "";
-    if (descriptor.type === "emoji") {
-      preview.textContent = descriptor.emoji;
-    } else {
-      preview.appendChild(buildGeneratedBody(descriptor));
-    }
+    preview.innerHTML = creatureSVG(Object.assign({}, descriptor.traits, { size: 34 }), descriptor.seed);
   }
 
   function finalizeCreature(descriptor, name, dropX, dropY) {
-    const opts = { dropX, dropY, catchable: true, catchMessage: `Hi I am ${name}` };
-    if (descriptor.type === "emoji") {
-      spawnEmojiCritter(descriptor.emoji, opts);
-    } else {
-      spawnGeneratedCritter(descriptor, opts);
-    }
+    spawnSpeciesCritter(descriptor, { dropX, dropY, catchable: true, catchMessage: `Hi I am ${name}` });
   }
+
+  const STARTING_SPECIES = ["rat", "mouse", "rabbit", "squirrel", "hedgehog", "owl", "duck", "bee", "ladybug", "butterfly", "butterfly", "ant", "spider", "beetle", "cricket"];
+  STARTING_SPECIES.forEach((key) => spawnSpeciesCritter({ traits: SPECIES_PRESETS[key], seed: hashString(key) }));
+
+  ["bear", "bear", "koala"].forEach((key, i) => {
+    const el = document.createElement("div");
+    el.className = "static-decor creature";
+    el.innerHTML = creatureSVG(SPECIES_PRESETS[key], hashString(key + i));
+    randPos(el, 70);
+    decorLayer.appendChild(el);
+  });
 
   const creatureToggle = document.getElementById("creature-toggle");
   const describeForm = document.getElementById("describe-form");
